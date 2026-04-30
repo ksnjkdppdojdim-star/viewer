@@ -1,0 +1,86 @@
+#!/usr/bin/env php
+<?php
+// viewer
+
+define('VIEWER_ROOT', __DIR__);
+
+require VIEWER_ROOT . '/core/bootstrap.php';
+
+$sysConfig = require VIEWER_ROOT . '/config/system.php';
+$dbConfig = require VIEWER_ROOT . '/config/database.php';
+
+$command = $argv[1] ?? null;
+$arg = $argv[2] ?? null;
+
+if ($command === 'admin:create') {
+    $email = $argv[2] ?? null;
+    $password = $argv[3] ?? null;
+
+    if (!$email || !$password) {
+        echo "Usage:\n";
+        echo "  php viewer admin:create <email> <password>\n";
+        exit(1);
+    }
+
+    echo "Creating admin user...\n";
+    try {
+        $service = new \Core\Auth\AdminUserService();
+        $id = $service->createOrUpdate($dbConfig['system'], (string) $email, (string) $password, 'admin');
+        echo "Admin user ready: {$email} (#{$id})\n";
+    } catch (\Exception $e) {
+        echo "Admin creation failed: " . $e->getMessage() . "\n";
+        exit(1);
+    }
+} elseif ($command === 'db:provision') {
+    $appUser = $argv[2] ?? null;
+    $appPassword = $argv[3] ?? null;
+
+    if (!$appUser || !$appPassword) {
+        echo "Usage:\n";
+        echo "  php viewer db:provision <app_user> <app_password>\n";
+        exit(1);
+    }
+
+    echo "Provisioning PostgreSQL database user...\n";
+    try {
+        $systemConfig = $dbConfig['system'];
+        $adminConfig = $dbConfig['admin'] ?? $systemConfig;
+        if (!in_array(strtolower((string) $systemConfig['driver']), ['pgsql', 'postgres'], true)) {
+            throw new \Exception('db:provision currently supports PostgreSQL only.');
+        }
+
+        $provisioner = new \Core\Database\DatabaseProvisioner();
+        $provisioner->provisionPgsql(
+            $adminConfig,
+            (string) $systemConfig['database'],
+            (string) $appUser,
+            (string) $appPassword
+        );
+
+        echo "Database user provisioned successfully.\n";
+        echo "Update .env with DB_USERNAME={$appUser} and the chosen DB_PASSWORD.\n";
+    } catch (\Exception $e) {
+        echo "Provisioning failed: " . $e->getMessage() . "\n";
+        exit(1);
+    }
+} elseif ($command === 'migrate') {
+    echo "Starting migrations...\n";
+    try {
+        $db = \Core\Database\Connection::make($dbConfig['system'], 'system');
+        $migrator = new \Core\Database\Migrator($db);
+
+        $type = $arg ?? 'system';
+        $migrator->run($type);
+
+        echo "Migrations completed successfully.\n";
+    } catch (\Exception $e) {
+        echo "Migration failed: " . $e->getMessage() . "\n";
+    }
+} else {
+    echo "Viewer CMS CLI\n\n";
+    echo "Usage:\n";
+    echo "  php viewer admin:create <email> <password>         Create/update a system admin\n";
+    echo "  php viewer db:provision <app_user> <app_password>  Create/update PostgreSQL app user\n";
+    echo "  php viewer migrate          Run system migrations\n";
+    echo "  php viewer migrate <db_id>  Run client migrations on a specific database\n";
+}

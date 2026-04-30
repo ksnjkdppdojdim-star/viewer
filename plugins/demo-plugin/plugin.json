@@ -1,0 +1,6 @@
+{
+    "name": "Demo Plugin",
+    "version": "1.0.0",
+    "author": "Viewer Team",
+    "description": "Un plugin pour tester l'intégration des événements et du loader."
+}

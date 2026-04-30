@@ -1,0 +1,17 @@
+@include('partials.header')
+
+<h1>{{ $siteName }}</h1>
+
+<div>{!! $description !!}</div>
+
+<ul>
+@foreach($features as $feature)
+    <li>
+        @if($feature['status'] == 'active')
+            <strong>{{ $feature['name'] }}</strong>
+        @else
+            <del>{{ $feature['name'] }}</del>
+        @endif
+    </li>
+@endforeach
+</ul>
